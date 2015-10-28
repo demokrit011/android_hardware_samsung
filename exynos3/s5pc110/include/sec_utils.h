@@ -23,7 +23,7 @@
 
 #include <hardware/hardware.h>
 #include <utils/Log.h>
-
+#include "graphics.h"
 #include "sec_format.h"
 
 #ifdef __cplusplus
