@@ -1,10 +1,6 @@
 /*
  * Copyright (C) 2006 The Android Open Source Project
  * Copyright (C) 2011, 2012 The CyanogenMod Project
-<<<<<<< HEAD
-=======
- * Copyright (C) 2013 The OmniROM Project
->>>>>>> 0dcb495... exynos3: bring up android 5.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,25 +61,16 @@ import android.telephony.Rlog;
 
 public class SamsungExynos3RIL extends RIL implements CommandsInterface {
 
-<<<<<<< HEAD
-=======
-    private Message mPendingGetSimStatus;
->>>>>>> 0dcb495... exynos3: bring up android 5.0
     private boolean mSignalbarCount = SystemProperties.getInt("ro.telephony.sends_barcount", 0) == 1 ? true : false;
     private boolean mIsSamsungCdma = SystemProperties.getBoolean("ro.ril.samsung_cdma", false);
     private Object mCatProCmdBuffer;
 
-<<<<<<< HEAD
     public SamsungExynos3RIL(Context context, int networkMode, int cdmaSubscription) {
         super(context, networkMode, cdmaSubscription);
     }
 
     public SamsungExynos3RIL(Context context, int networkMode, int cdmaSubscription, Integer instanceId) {
         super(context, networkMode, cdmaSubscription, instanceId);
-=======
-    public SamsungExynos3RIL(Context context, int networkMode, int cdmaSubscription, Integer instanceId) {
-        super(context, networkMode, cdmaSubscription);
->>>>>>> 0dcb495... exynos3: bring up android 5.0
     }
 
     // SAMSUNG SGS STATES
@@ -127,7 +114,6 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
         send(rr);
     }
 
-<<<<<<< HEAD
     @Override
     protected RILRequest
     processSolicited (Parcel p) {
@@ -349,15 +335,6 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
         }
 
         return rr;
-=======
-    protected Object getOverridenRequestResponse(int mRequest, Parcel p) {
-        switch(mRequest) {
-            case RIL_REQUEST_LAST_CALL_FAIL_CAUSE: return responseLastCallFailCause(p);
-            case RIL_REQUEST_VOICE_REGISTRATION_STATE: return responseVoiceRegistrationState(p);
-            case RIL_REQUEST_CDMA_SUBSCRIPTION: return responseCdmaSubscription(p);
-            default: return null;
-        }
->>>>>>> 0dcb495... exynos3: bring up android 5.0
     }
 
     @Override
@@ -663,17 +640,6 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
     @Override
     protected Object
     responseSignalStrength(Parcel p) {
-<<<<<<< HEAD
-=======
-        // When SIM is PIN-unlocked, the RIL responds with APPSTATE_UNKNOWN and
-        // does not follow up with RIL_UNSOL_RESPONSE_SIM_STATUS_CHANGED. We
-        // notify the system here.
-        String state = SystemProperties.get(TelephonyProperties.PROPERTY_SIM_STATE);
-        if (!"READY".equals(state) && mIccStatusChangedRegistrants != null && !mIsSamsungCdma) {
-            mIccStatusChangedRegistrants.notifyRegistrants();
-        }
-
->>>>>>> 0dcb495... exynos3: bring up android 5.0
         int[] response = new int[7];
         for (int i = 0 ; i < 7 ; i++) {
             response[i] = p.readInt();
@@ -711,7 +677,6 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
         return signalStrength;
     }
 
-<<<<<<< HEAD
     @Override
     protected RadioState getRadioStateFromInt(int stateInt) {
         RadioState state;
@@ -744,8 +709,6 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
         return state;
     }
 
-=======
->>>>>>> 0dcb495... exynos3: bring up android 5.0
     protected Object
     responseVoiceRegistrationState(Parcel p) {
         String response[] = (String[])responseStrings(p);
@@ -760,14 +723,8 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
         return response;
     }
 
-<<<<<<< HEAD
     protected Object
     responseNetworkType(Parcel p) {
-=======
-    @Override
-    protected Object
-    responseGetPreferredNetworkType(Parcel p) {
->>>>>>> 0dcb495... exynos3: bring up android 5.0
         int response[] = (int[]) responseInts(p);
 
         // When the modem responds Phone.NT_MODE_GLOBAL, it means Phone.NT_MODE_WCDMA_PREF
@@ -1044,12 +1001,8 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
             Rlog.d(RILJ_LOG_TAG, "Mobile Dataconnection is online setting it down");
             mDesiredNetworkType = networkType;
             mNetworktypeResponse = response;
-<<<<<<< HEAD
             TelephonyManager ts =
                 (TelephonyManager)mContext.getSystemService(Context.TELEPHONY_SERVICE);
-=======
-            TelephonyManager ts = (TelephonyManager)mContext.getSystemService(Context.TELEPHONY_SERVICE);
->>>>>>> 0dcb495... exynos3: bring up android 5.0
             //start listening for the connectivity change broadcast
             startListening();
             ts.setDataEnabled(false);
@@ -1060,18 +1013,11 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
             switch(msg.what) {
             //networktype was set, now we can enable the dataconnection again
             case MESSAGE_SET_PREFERRED_NETWORK_TYPE:
-<<<<<<< HEAD
                 TelephonyManager ts =
                     (TelephonyManager)mContext.getSystemService(Context.TELEPHONY_SERVICE);
                 Rlog.d(RILJ_LOG_TAG, "preferred NetworkType set upping Mobile Dataconnection");
 
                 ts.setDataEnabled(true);
-=======
-                TelephonyManager ts = (TelephonyManager)mContext.getSystemService(Context.TELEPHONY_SERVICE);
-                Rlog.d(RILJ_LOG_TAG, "preferred NetworkType set upping Mobile Dataconnection");
-                ts.setDataEnabled(true);
-
->>>>>>> 0dcb495... exynos3: bring up android 5.0
                 //everything done now call back that we have set the networktype
                 AsyncResult.forMessage(mNetworktypeResponse, null, null);
                 mNetworktypeResponse.sendToTarget();
@@ -1104,32 +1050,4 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
             }
         }
     }
-<<<<<<< HEAD
-=======
-
-    // Hack for Lollipop
-    // The system now queries for SIM status before radio on, resulting
-    // in getting an APPSTATE_DETECTED state. The RIL does not send an
-    // RIL_UNSOL_RESPONSE_SIM_STATUS_CHANGED message after the SIM is
-    // initialized, so delay the message until the radio is on.
-    @Override
-    public void
-    getIccCardStatus(Message result) {
-        if (mState != RadioState.RADIO_ON) {
-            mPendingGetSimStatus = result;
-        } else {
-            super.getIccCardStatus(result);
-        }
-    }
-
-    @Override
-    protected void switchToRadioState(RadioState newState) {
-        super.switchToRadioState(newState);
-
-        if (newState == RadioState.RADIO_ON && mPendingGetSimStatus != null) {
-            super.getIccCardStatus(mPendingGetSimStatus);
-            mPendingGetSimStatus = null;
-        }
-    }
->>>>>>> 0dcb495... exynos3: bring up android 5.0
 }
