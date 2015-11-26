@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2006 The Android Open Source Project
  * Copyright (C) 2011, 2012 The CyanogenMod Project
+ * Copyright (C) 2013 The OmniROM Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +27,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.Resources;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Handler;
@@ -56,21 +58,20 @@ import com.android.internal.telephony.cdma.CdmaInformationRecords.CdmaSignalInfo
 import com.android.internal.telephony.cdma.SignalToneUtil;
 import com.android.internal.telephony.dataconnection.DataCallResponse;
 import com.android.internal.telephony.dataconnection.DcFailCause;
+import com.android.internal.telephony.HardwareConfig;
+import com.android.internal.telephony.RadioCapability;
 
 import android.telephony.Rlog;
 
 public class SamsungExynos3RIL extends RIL implements CommandsInterface {
 
+    private Message mPendingGetSimStatus;
     private boolean mSignalbarCount = SystemProperties.getInt("ro.telephony.sends_barcount", 0) == 1 ? true : false;
     private boolean mIsSamsungCdma = SystemProperties.getBoolean("ro.ril.samsung_cdma", false);
     private Object mCatProCmdBuffer;
 
-    public SamsungExynos3RIL(Context context, int networkMode, int cdmaSubscription) {
-        super(context, networkMode, cdmaSubscription);
-    }
-
     public SamsungExynos3RIL(Context context, int networkMode, int cdmaSubscription, Integer instanceId) {
-        super(context, networkMode, cdmaSubscription, instanceId);
+        super(context, networkMode, cdmaSubscription);
     }
 
     // SAMSUNG SGS STATES
@@ -87,6 +88,13 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
     requestToString(int request) {
         switch (request) {
             case RIL_REQUEST_DIAL_EMERGENCY: return "DIAL_EMERGENCY";
+            case RIL_REQUEST_SIM_AUTHENTICATION:
+                    return "RIL_REQUEST_SIM_AUTHENTICATION";
+            case RIL_REQUEST_GET_HARDWARE_CONFIG: return "GET_HARDWARE_CONFIG";
+            case RIL_REQUEST_SET_RADIO_CAPABILITY:
+                    return "RIL_REQUEST_SET_RADIO_CAPABILITY";
+            case RIL_REQUEST_GET_RADIO_CAPABILITY:
+                    return "RIL_REQUEST_GET_RADIO_CAPABILITY";
             default: return RIL.requestToString(request);
         }
     }
@@ -131,7 +139,7 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
 
         if (rr == null) {
             Rlog.w(RILJ_LOG_TAG, "Unexpected solicited response! sn: "
-                    + serial + " error: " + error);
+                            + serial + " error: " + error);
             return null;
         }
 
@@ -158,7 +166,16 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
             case RIL_REQUEST_GET_IMSI: ret =  responseString(p); break;
             case RIL_REQUEST_HANGUP: ret =  responseVoid(p); break;
             case RIL_REQUEST_HANGUP_WAITING_OR_BACKGROUND: ret =  responseVoid(p); break;
-            case RIL_REQUEST_HANGUP_FOREGROUND_RESUME_BACKGROUND: ret =  responseVoid(p); break;
+            case RIL_REQUEST_HANGUP_FOREGROUND_RESUME_BACKGROUND: {
+                if (mTestingEmergencyCall.getAndSet(false)) {
+                    if (mEmergencyCallbackModeRegistrant != null) {
+                        riljLog("testing emergency call, notify ECM Registrants");
+                        mEmergencyCallbackModeRegistrant.notifyRegistrant();
+                    }
+                }
+                ret =  responseVoid(p);
+                break;
+            }
             case RIL_REQUEST_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE: ret =  responseVoid(p); break;
             case RIL_REQUEST_CONFERENCE: ret =  responseVoid(p); break;
             case RIL_REQUEST_UDUB: ret =  responseVoid(p); break;
@@ -218,7 +235,7 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
             case RIL_REQUEST_STK_HANDLE_CALL_SETUP_REQUESTED_FROM_SIM: ret =  responseInts(p); break;
             case RIL_REQUEST_EXPLICIT_CALL_TRANSFER: ret =  responseVoid(p); break;
             case RIL_REQUEST_SET_PREFERRED_NETWORK_TYPE: ret =  responseVoid(p); break;
-            case RIL_REQUEST_GET_PREFERRED_NETWORK_TYPE: ret =  responseNetworkType(p); break;
+            case RIL_REQUEST_GET_PREFERRED_NETWORK_TYPE: ret =  responseGetPreferredNetworkType(p); break;
             case RIL_REQUEST_GET_NEIGHBORING_CELL_IDS: ret = responseCellList(p); break;
             case RIL_REQUEST_SET_LOCATION_UPDATES: ret =  responseVoid(p); break;
             case RIL_REQUEST_CDMA_SET_SUBSCRIPTION_SOURCE: ret =  responseVoid(p); break;
@@ -255,7 +272,25 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
             case RIL_REQUEST_VOICE_RADIO_TECH: ret = responseInts(p); break;
             case RIL_REQUEST_GET_CELL_INFO_LIST: ret = responseCellInfoList(p); break;
             case RIL_REQUEST_SET_UNSOL_CELL_INFO_LIST_RATE: ret = responseVoid(p); break;
-            case RIL_REQUEST_DIAL_EMERGENCY: ret = responseVoid(p); break;
+            case RIL_REQUEST_SET_INITIAL_ATTACH_APN: ret = responseVoid(p); break;
+            case RIL_REQUEST_SET_DATA_PROFILE: ret = responseVoid(p); break;
+            case RIL_REQUEST_IMS_REGISTRATION_STATE: ret = responseInts(p); break;
+            case RIL_REQUEST_IMS_SEND_SMS: ret =  responseSMS(p); break;
+            case RIL_REQUEST_SIM_TRANSMIT_APDU_BASIC: ret =  responseICC_IO(p); break;
+            case RIL_REQUEST_SIM_OPEN_CHANNEL: ret  = responseInts(p); break;
+            case RIL_REQUEST_SIM_CLOSE_CHANNEL: ret  = responseVoid(p); break;
+            case RIL_REQUEST_SIM_TRANSMIT_APDU_CHANNEL: ret = responseICC_IO(p); break;
+            case RIL_REQUEST_NV_READ_ITEM: ret = responseString(p); break;
+            case RIL_REQUEST_NV_WRITE_ITEM: ret = responseVoid(p); break;
+            case RIL_REQUEST_NV_WRITE_CDMA_PRL: ret = responseVoid(p); break;
+            case RIL_REQUEST_NV_RESET_CONFIG: ret = responseVoid(p); break;
+            case RIL_REQUEST_SET_UICC_SUBSCRIPTION: ret = responseVoid(p); break;
+            case RIL_REQUEST_ALLOW_DATA: ret = responseVoid(p); break;
+            case RIL_REQUEST_GET_HARDWARE_CONFIG: ret = responseHardwareConfig(p); break;
+            case RIL_REQUEST_SIM_AUTHENTICATION: ret =  responseICC_IOBase64(p); break;
+            case RIL_REQUEST_SHUTDOWN: ret = responseVoid(p); break;
+            case RIL_REQUEST_GET_RADIO_CAPABILITY: ret =  responseRadioCapability(p); break;
+            case RIL_REQUEST_SET_RADIO_CAPABILITY: ret =  responseRadioCapability(p); break;
             default:
                 throw new RuntimeException("Unrecognized solicited response: " + rr.mRequest);
                 //break;
@@ -272,6 +307,14 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
                 }
                 return rr;
             }
+        }
+
+        if (rr.mRequest == RIL_REQUEST_SHUTDOWN) {
+            // Set RADIO_STATE to RADIO_UNAVAILABLE to continue shutdown process
+            // regardless of error code to continue shutdown procedure.
+            riljLog("Response to RIL_REQUEST_SHUTDOWN received. Error is " +
+                    error + " Setting Radio State to Unavailable regardless of error.");
+            setRadioState(RadioState.RADIO_UNAVAILABLE);
         }
 
         // Here and below fake RIL_UNSOL_RESPONSE_SIM_STATUS_CHANGED, see b/7255789.
@@ -412,6 +455,10 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
         case RIL_UNSOL_SAMSUNG_UNKNOWN_MAGIC_REQUEST: ret = responseVoid(p); break;
         case RIL_UNSOL_SAMSUNG_UNKNOWN_MAGIC_REQUEST_2: ret = responseVoid(p); break;
         case RIL_UNSOL_AM: ret = responseString(p); break;
+        case RIL_UNSOL_STK_SEND_SMS_RESULT: ret = responseInts(p); break; // Samsung STK
+        case RIL_UNSOL_HARDWARE_CONFIG_CHANGED: ret = responseHardwareConfig(p); break;
+        case RIL_UNSOL_RADIO_CAPABILITY:
+                ret = responseRadioCapability(p); break;
 
         default:
             // Rewind the Parcel
@@ -528,6 +575,34 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
                 Rlog.e(RILJ_LOG_TAG, "am " + amString + " could not be executed.");
             }
             break;
+        case RIL_UNSOL_HARDWARE_CONFIG_CHANGED:
+            if (RILJ_LOGD) unsljLogRet(response, ret);
+
+            if (mHardwareConfigChangeRegistrants != null) {
+                mHardwareConfigChangeRegistrants.notifyRegistrants(
+                                         new AsyncResult (null, ret, null));
+            }
+            break;
+        // Samsung STK
+        case RIL_UNSOL_STK_SEND_SMS_RESULT:
+            if (Resources.getSystem().
+                    getBoolean(com.android.internal.R.bool.config_samsung_stk)) {
+                if (RILJ_LOGD) unsljLogRet(response, ret);
+
+                if (mCatSendSmsResultRegistrant != null) {
+                    mCatSendSmsResultRegistrant.notifyRegistrant(
+                            new AsyncResult (null, ret, null));
+                }
+            }
+            break;
+        case RIL_UNSOL_RADIO_CAPABILITY:
+            if (RILJ_LOGD) unsljLogRet(response, ret);
+
+            if (mPhoneRadioCapabilityChangedRegistrants != null) {
+                mPhoneRadioCapabilityChangedRegistrants.notifyRegistrants(
+                        new AsyncResult(null, ret, null));
+             }
+             break;
         }
     }
 
@@ -548,6 +623,12 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
 
         num = p.readInt();
         response = new ArrayList<DriverCall>(num);
+
+        if (RILJ_LOGV) {
+            Rlog.d(RILJ_LOG_TAG, "responseCallList: num=" + num +
+                    " mEmergencyCallbackModeRegistrant=" + mEmergencyCallbackModeRegistrant +
+                    " mTestingEmergencyCall=" + mTestingEmergencyCall.get());
+        }
 
         for (int i = 0 ; i < num ; i++) {
             if (mIsSamsungCdma)
@@ -619,6 +700,14 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
 
         Collections.sort(response);
 
+        if ((num == 0) && mTestingEmergencyCall.getAndSet(false)) {
+            if (mEmergencyCallbackModeRegistrant != null) {
+                Rlog.d(RILJ_LOG_TAG, "responseCallList: call ended, testing emergency call," +
+                            " notify ECM Registrants");
+                mEmergencyCallbackModeRegistrant.notifyRegistrant();
+            }
+        }
+
         return response;
     }
 
@@ -640,6 +729,14 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
     @Override
     protected Object
     responseSignalStrength(Parcel p) {
+        // When SIM is PIN-unlocked, the RIL responds with APPSTATE_UNKNOWN and
+        // does not follow up with RIL_UNSOL_RESPONSE_SIM_STATUS_CHANGED. We
+        // notify the system here.
+        String state = SystemProperties.get(TelephonyProperties.PROPERTY_SIM_STATE);
+        if (!"READY".equals(state) && mIccStatusChangedRegistrants != null && !mIsSamsungCdma) {
+            mIccStatusChangedRegistrants.notifyRegistrants();
+        }
+
         int[] response = new int[7];
         for (int i = 0 ; i < 7 ; i++) {
             response[i] = p.readInt();
@@ -723,8 +820,9 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
         return response;
     }
 
+    @Override
     protected Object
-    responseNetworkType(Parcel p) {
+    responseGetPreferredNetworkType(Parcel p) {
         int response[] = (int[]) responseInts(p);
 
         // When the modem responds Phone.NT_MODE_GLOBAL, it means Phone.NT_MODE_WCDMA_PREF
@@ -1001,8 +1099,7 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
             Rlog.d(RILJ_LOG_TAG, "Mobile Dataconnection is online setting it down");
             mDesiredNetworkType = networkType;
             mNetworktypeResponse = response;
-            TelephonyManager ts =
-                (TelephonyManager)mContext.getSystemService(Context.TELEPHONY_SERVICE);
+            TelephonyManager ts = (TelephonyManager)mContext.getSystemService(Context.TELEPHONY_SERVICE);
             //start listening for the connectivity change broadcast
             startListening();
             ts.setDataEnabled(false);
@@ -1013,11 +1110,10 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
             switch(msg.what) {
             //networktype was set, now we can enable the dataconnection again
             case MESSAGE_SET_PREFERRED_NETWORK_TYPE:
-                TelephonyManager ts =
-                    (TelephonyManager)mContext.getSystemService(Context.TELEPHONY_SERVICE);
+                TelephonyManager ts = (TelephonyManager)mContext.getSystemService(Context.TELEPHONY_SERVICE);
                 Rlog.d(RILJ_LOG_TAG, "preferred NetworkType set upping Mobile Dataconnection");
-
                 ts.setDataEnabled(true);
+
                 //everything done now call back that we have set the networktype
                 AsyncResult.forMessage(mNetworktypeResponse, null, null);
                 mNetworktypeResponse.sendToTarget();
@@ -1049,5 +1145,28 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
                 }
             }
         }
+    }
+
+    private void
+    constructGsmSendSmsRilRequest (RILRequest rr, String smscPDU, String pdu) {
+        rr.mParcel.writeInt(2);
+        rr.mParcel.writeString(smscPDU);
+        rr.mParcel.writeString(pdu);
+    }
+
+    /**
+    * The RIL can't handle the RIL_REQUEST_SEND_SMS_EXPECT_MORE
+    * request properly, so we use RIL_REQUEST_SEND_SMS instead.
+    */
+    @Override
+    public void
+    sendSMSExpectMore (String smscPDU, String pdu, Message result) {
+        RILRequest rr
+                = RILRequest.obtain(RIL_REQUEST_SEND_SMS, result);
+        constructGsmSendSmsRilRequest(rr, smscPDU, pdu);
+
+        if (RILJ_LOGD) riljLog(rr.serialString() + "> " + requestToString(rr.mRequest));
+
+        send(rr);
     }
 }
