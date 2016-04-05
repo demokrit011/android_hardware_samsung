@@ -66,12 +66,13 @@ import android.telephony.Rlog;
 public class SamsungExynos3RIL extends RIL implements CommandsInterface {
 
     private Message mPendingGetSimStatus;
+    private boolean setPreferredNetworkTypeSeen = false;
     private boolean mSignalbarCount = SystemProperties.getInt("ro.telephony.sends_barcount", 0) == 1 ? true : false;
     private boolean mIsSamsungCdma = SystemProperties.getBoolean("ro.ril.samsung_cdma", false);
     private Object mCatProCmdBuffer;
 
-    public SamsungExynos3RIL(Context context, int networkMode, int cdmaSubscription, Integer instanceId) {
-        super(context, networkMode, cdmaSubscription);
+    public SamsungExynos3RIL(Context context, int preferredNetworkType, int cdmaSubscription, Integer instanceId) {
+        super(context, preferredNetworkType, cdmaSubscription);
     }
 
     // SAMSUNG SGS STATES
@@ -1025,21 +1026,16 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
      */
     @Override
     public void setPreferredNetworkType(int networkType , Message response) {
-        /* Samsung modem implementation does bad things when a datacall is running
-         * while switching the preferred networktype.
-         */
-        ConnectivityManager cm =
-            (ConnectivityManager)mContext.getSystemService(Context.CONNECTIVITY_SERVICE);
+        riljLog("setPreferredNetworkType: " + networkType);
 
-        NetworkInfo.State mobileState = cm.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).getState();
-        if (mobileState == NetworkInfo.State.CONNECTED || mobileState == NetworkInfo.State.CONNECTING) {
-            ConnectivityHandler handler = new ConnectivityHandler(mContext);
-            handler.setPreferedNetworkType(networkType, response);
-        } else {
-            sendPreferedNetworktype(networkType, response);
+        if (!setPreferredNetworkTypeSeen) {
+            riljLog("Need to reboot modem!");
+            setRadioPower(false, null);
+            setPreferredNetworkTypeSeen = true;
         }
-    }
 
+        super.setPreferredNetworkType(networkType, response);
+    }
 
     //Sends the real RIL request to the modem.
     private void sendPreferedNetworktype(int networkType, Message response) {
