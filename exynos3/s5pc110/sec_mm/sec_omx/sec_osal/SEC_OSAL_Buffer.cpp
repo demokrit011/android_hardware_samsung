@@ -115,7 +115,7 @@ OMX_U32 getVADDRfromANB(OMX_PTR pUnreadableBuffer, OMX_U32 Width, OMX_U32 Height
     android_native_buffer_t *buf;
     void *readableBuffer;
     GraphicBufferMapper &mapper = GraphicBufferMapper::get();
-    Rect bounds(Width, Height);
+    Rect bounds((uint32_t)Width, (uint32_t)Height);
 
     FunctionIn();
 
