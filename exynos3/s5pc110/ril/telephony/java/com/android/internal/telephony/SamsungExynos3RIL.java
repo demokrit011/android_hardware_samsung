@@ -70,8 +70,13 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
     private boolean mIsSamsungCdma = SystemProperties.getBoolean("ro.ril.samsung_cdma", false);
     private Object mCatProCmdBuffer;
 
-    public SamsungExynos3RIL(Context context, int networkMode, int cdmaSubscription, Integer instanceId) {
-        super(context, networkMode, cdmaSubscription);
+    public SamsungExynos3RIL(Context context, int preferredNetworkType, int cdmaSubscription, Integer instanceid) {
+        super(context, preferredNetworkType, cdmaSubscription, instanceid);
+    }
+
+
+    public SamsungOmap4RIL(Context context, int preferredNetworkType, int cdmaSubscription) {
+        super(context, preferredNetworkType, cdmaSubscription, null);
     }
 
     // SAMSUNG SGS STATES
@@ -1170,3 +1175,13 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
         send(rr);
     }
 }
+
+    @Override
+    public void getRadioCapability(Message response) {
+        riljLog("getRadioCapability: returning static radio capability");
+        if (response != null) {
+            Object ret = makeStaticRadioCapability();
+            AsyncResult.forMessage(response, ret, null);
+            response.sendToTarget();
+        }
+    }
