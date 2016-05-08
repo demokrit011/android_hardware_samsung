@@ -75,7 +75,7 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
     }
 
 
-    public SamsungOmap4RIL(Context context, int preferredNetworkType, int cdmaSubscription) {
+    public SamsungExynos3RIL(Context context, int preferredNetworkType, int cdmaSubscription) {
         super(context, preferredNetworkType, cdmaSubscription, null);
     }
 
@@ -1174,7 +1174,7 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
 
         send(rr);
     }
-}
+
 
     @Override
     public void getRadioCapability(Message response) {
@@ -1185,3 +1185,4 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
             response.sendToTarget();
         }
     }
+}
