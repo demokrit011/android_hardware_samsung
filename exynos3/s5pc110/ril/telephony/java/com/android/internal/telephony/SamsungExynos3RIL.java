@@ -1174,15 +1174,4 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
 
         send(rr);
     }
-
-
-    @Override
-    public void getRadioCapability(Message response) {
-        riljLog("getRadioCapability: returning static radio capability");
-        if (response != null) {
-            Object ret = makeStaticRadioCapability();
-            AsyncResult.forMessage(response, ret, null);
-            response.sendToTarget();
-        }
-    }
 }
