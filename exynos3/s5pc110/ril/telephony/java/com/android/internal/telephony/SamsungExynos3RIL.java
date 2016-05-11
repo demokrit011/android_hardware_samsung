@@ -70,13 +70,13 @@ public class SamsungExynos3RIL extends RIL implements CommandsInterface {
     private boolean mIsSamsungCdma = SystemProperties.getBoolean("ro.ril.samsung_cdma", false);
     private Object mCatProCmdBuffer;
 
-    public SamsungExynos3RIL(Context context, int preferredNetworkType, int cdmaSubscription, Integer instanceid) {
-        super(context, preferredNetworkType, cdmaSubscription, instanceid);
+    public SamsungExynos3RIL(Context context, int networkMode, int cdmaSubscription, Integer instanceid) {
+        super(context, networkMode, cdmaSubscription, instanceid);
     }
 
 
-    public SamsungExynos3RIL(Context context, int preferredNetworkType, int cdmaSubscription) {
-        super(context, preferredNetworkType, cdmaSubscription, null);
+    public SamsungExynos3RIL(Context context, int networkMode, int cdmaSubscription) {
+        super(context, networkMode, cdmaSubscription, null);
     }
 
     // SAMSUNG SGS STATES
